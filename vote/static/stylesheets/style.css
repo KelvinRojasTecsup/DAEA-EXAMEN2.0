@@ -2,7 +2,7 @@ body {
   font-family: 'Arial', sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f4f4f4;
+  background-color: #e6e6e6; /* Changed background color */
 }
 
 #content-container {
@@ -13,7 +13,7 @@ body {
 }
 
 #content-container-center {
-  background-color: #fff;
+  background-color: #ffffff; /* Changed background color */
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -35,13 +35,13 @@ label {
 input {
   padding: 8px;
   margin-bottom: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #999; /* Changed border color */
   border-radius: 4px;
 }
 
 button {
   padding: 10px 15px;
-  background-color: #4caf50;
+  background-color: #3498db; /* Changed button background color */
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -50,7 +50,7 @@ button {
 }
 
 button:hover {
-  background-color: #45a049;
+  background-color: #2980b9; /* Changed button hover background color */
 }
 
 /* Add more styles as needed */
