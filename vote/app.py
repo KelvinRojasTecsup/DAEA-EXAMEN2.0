@@ -8,51 +8,54 @@ import logging
 import math
 from math import sqrt
 import csv
+import requests  # Import the requests library
 
 option_a = os.getenv('OPTION_A', "Manhattan")
 option_b = os.getenv('OPTION_B', "Pearson")
 hostname = socket.gethostname()
 
 
-#FUNCIONES
+# FUNCIONES
 
-#1
+# 1
 def manhattan(rating1, rating2):
-  distance = 0
-  total = 0
-  for key in rating1:
-      if key in rating2:
-          distance += abs(rating1[key] - rating2[key])
-          total += 1
-  if total > 0:
-      return distance / total
-  else:
-      return -1  # Indica que no hay calificaciones en común
+    distance = 0
+    total = 0
+    for key in rating1:
+        if key in rating2:
+            distance += abs(rating1[key] - rating2[key])
+            total += 1
+    if total > 0:
+        return distance / total
+    else:
+        return -1  # Indica que no hay calificaciones en común
 
 
-#2
+# 2
 def pearson(rating1, rating2):
-  n = len(rating1)
-  if n == 0:
-      return 0
+    n = len(rating1)
+    if n == 0:
+        return 0
 
-  sum_x = sum(rating1.values())
-  sum_y = sum(rating2.values())
-  sum_xy = sum(rating1[movie] * rating2[movie] for movie in rating1 if movie in rating2)
-  sum_x2 = sum(pow(rating1[movie], 2) for movie in rating1)
-  sum_y2 = sum(pow(rating2[movie], 2) for movie in rating2)
+    sum_x = sum(rating1.values())
+    sum_y = sum(rating2.values())
+    sum_xy = sum(rating1[movie] * rating2[movie] for movie in rating1 if movie in rating2)
+    sum_x2 = sum(pow(rating1[movie], 2) for movie in rating1)
+    sum_y2 = sum(pow(rating2[movie], 2) for movie in rating2)
 
-  numerator = sum_xy - (sum_x * sum_y) / n
+    numerator = sum_xy - (sum_x * sum_y) / n
 
-  denominator = sqrt(abs((sum_x2 - pow(sum_x, 2) / n) * (sum_y2 - pow(sum_y, 2) / n) + 1e-9))
+    denominator = sqrt(abs(
+        (sum_x2 - pow(sum_x, 2) / n) * (sum_y2 - pow(sum_y, 2) / n) + 1e-9))
 
-  if denominator == 0:
-      return 0
+    if denominator == 0:
+        return 0
 
-  similarity = numerator / denominator
-  return similarity
+    similarity = numerator / denominator
+    return similarity
 
-#3
+
+# 3
 def euclidean(rating1, rating2):
     distance = 0
     common_ratings = False
@@ -66,27 +69,26 @@ def euclidean(rating1, rating2):
         return -1  # Indica que no hay calificaciones en común
 
 
-#4
+# 4
 def cosine_similarity(rating1, rating2):
-  dot_product = 0
-  magnitude_rating1 = 0
-  magnitude_rating2 = 0
+    dot_product = 0
+    magnitude_rating1 = 0
+    magnitude_rating2 = 0
 
-  for key in rating1:
-      if key in rating2:
-          dot_product += rating1[key] * rating2[key]
-          magnitude_rating1 += pow(rating1[key], 2)
-          magnitude_rating2 += pow(rating2[key], 2)
+    for key in rating1:
+        if key in rating2:
+            dot_product += rating1[key] * rating2[key]
+            magnitude_rating1 += pow(rating1[key], 2)
+            magnitude_rating2 += pow(rating2[key], 2)
 
-  magnitude_rating1 = math.sqrt(magnitude_rating1)
-  magnitude_rating2 = math.sqrt(magnitude_rating2)
+    magnitude_rating1 = math.sqrt(magnitude_rating1)
+    magnitude_rating2 = math.sqrt(magnitude_rating2)
 
-  if magnitude_rating1 == 0 or magnitude_rating2 == 0:
-      return 0
-  else:
-      return dot_product / (magnitude_rating1 * magnitude_rating2)
-      
-      
+    if magnitude_rating1 == 0 or magnitude_rating2 == 0:
+        return 0
+    else:
+        return dot_product / (magnitude_rating1 * magnitude_rating2)
+
 
 app = Flask(__name__)
 
@@ -99,21 +101,33 @@ def get_redis():
         g.redis = Redis(host="redis", db=0, socket_timeout=5)
     return g.redis
 
-def cargar_datos_desde_csv(ruta_csv):
-    datos = {}
-    with open(ruta_csv, newline='', encoding='utf-8') as archivo_csv:
-        lector_csv = csv.DictReader(archivo_csv)
-        for fila in lector_csv:
-            userId = fila['userId']
-            movieId = fila['movieId']
-            rating = float(fila['rating'])
-            if userId not in datos:
-                datos[userId] = {}
-            datos[userId][movieId] = rating
-    return datos
+# Function to fetch data from the given API
+def fetch_api_data(api_url):
+    try:
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        print(f"Error fetching data from API: {e}")
+        return None
 
-ruta_csv = 'ratings.csv'  # Cambia esto a la ubicación real de tu archivo CSV
-usuarios = cargar_datos_desde_csv(ruta_csv)
+# Load data from API
+api_url = "http://ip172-18-0-6-clamot4snmng00co2770-5000.direct.labs.play-with-docker.com/ratings"
+api_data = fetch_api_data(api_url)
+
+if api_data:
+    usuarios = {}  # Update usuarios with data from the API
+    for entry in api_data:
+        userId = str(entry['userId'])
+        movieId = str(entry['movieId'])
+        rating = float(entry['rating'])
+        if userId not in usuarios:
+            usuarios[userId] = {}
+        usuarios[userId][movieId] = rating
+else:
+    print("Failed to load data from the API.")
 
 @app.route("/", methods=['POST', 'GET'])
 def distancias():
@@ -131,10 +145,12 @@ def distancias():
             distancia_manhattan = str(manhattan(usuarios[user_1], usuarios[user_2]))
             distancia_euclidean = str(euclidean(usuarios[user_1], usuarios[user_2]))
             distancia_cosine_similarity = str(cosine_similarity(usuarios[user_1], usuarios[user_2]))
-            data = json.dumps({'voter_id': voter_id, 'distancia_manhattan': distancia_manhattan, 'distancia_pearson': distancia_pearson, 'distancia_euclidean': distancia_euclidean, 'distancia_cosine_similarity': distancia_cosine_similarity})
+            data = json.dumps({'voter_id': voter_id, 'distancia_manhattan': distancia_manhattan,
+                               'distancia_pearson': distancia_pearson, 'distancia_euclidean': distancia_euclidean,
+                               'distancia_cosine_similarity': distancia_cosine_similarity})
             redis.rpush('distancias', data)
         else:
-            return "Usuarios no encontrados en los datos cargados desde el CSV"
+            return "Usuarios no encontrados en los datos cargados desde el API"
 
     resp = make_response(render_template(
         'index.html',
